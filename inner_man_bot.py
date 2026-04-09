@@ -14,8 +14,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = Path('output/bot_config.json')
-DATA_PATH = Path('output/user_state.json')
+CONFIG_PATH = Path('bot_config.json')
+DATA_PATH = Path('user_state.json')
 
 ASKING_IMAGES = 1
 ASKING_SLOT = 2
@@ -44,7 +44,6 @@ DEFAULT_CONFIG = {
 
 
 def ensure_files():
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not CONFIG_PATH.exists():
         CONFIG_PATH.write_text(json.dumps(DEFAULT_CONFIG, ensure_ascii=False, indent=2), encoding='utf-8')
     if not DATA_PATH.exists():
@@ -74,17 +73,6 @@ def set_stage(user_id: int, **kwargs):
     save_data(data)
 
 
-def get_stage(user_id: int):
-    data = load_data()
-    return data.get(str(user_id), {})
-
-
-def weekday_map():
-    return {
-        0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'
-    }
-
-
 def next_slots_text(config):
     slots = config.get('slots', {})
     names = {
@@ -112,17 +100,16 @@ async def schedule_followups(application, chat_id: int):
 
 
 async def remind_meditation(context: ContextTypes.DEFAULT_TYPE):
-    config = load_config()
     chat_id = context.job.chat_id
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            "Напоминаю о медитации 🌿\n\n"
-            "Если ты посмотрела бесплатное видео, следующим шагом будет медитация на встречу с внутренним мужчиной. "
-            "Именно она обычно даёт первый сильный инсайт."
+            "Напоминаю о следующем шаге 🌿\n\n"
+            "Если ты уже посмотрела бесплатное видео, переходи к медитации на встречу с внутренним мужчиной. "
+            "Именно там обычно начинается самое важное внутреннее узнавание."
         ),
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎧 Получить медитацию", callback_data="get_meditation")]
+            [InlineKeyboardButton("🧘 Получить медитацию", callback_data="get_meditation")]
         ])
     )
 
@@ -133,8 +120,7 @@ async def remind_images(context: ContextTypes.DEFAULT_TYPE):
         chat_id=chat_id,
         text=(
             "Если ты уже сделала медитацию, пришли мне короткое описание образов.\n\n"
-            "Можно очень просто: кто был мужчина, как выглядел, как себя вёл и что ты почувствовала. "
-            "Даже 3–4 короткие фразы уже достаточно."
+            "Можно совсем просто: кто был мужчина, как он выглядел, как себя вёл и что ты почувствовала рядом с ним."
         ),
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("📝 Описать образы", callback_data="share_images")]
@@ -145,17 +131,16 @@ async def remind_images(context: ContextTypes.DEFAULT_TYPE):
 async def remind_call(context: ContextTypes.DEFAULT_TYPE):
     config = load_config()
     chat_id = context.job.chat_id
-    mode = config.get('booking_mode', 'manual_slots')
     buttons = []
-    if mode == 'booking_link':
+    if config.get('booking_mode') == 'booking_link':
         buttons.append([InlineKeyboardButton("📅 Записаться", url=config.get('booking_link', 'https://t.me'))])
     else:
         buttons.append([InlineKeyboardButton("📞 Выбрать время", callback_data="book_call")])
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            "Если хочешь, я могу помочь тебе расшифровать образы на коротком созвоне.\n\n"
-            "На встрече мы разберём, что именно показала медитация, и я скажу, куда двигаться дальше без давления и навязывания."
+            "Если хочешь, мы можем сделать короткий разбор твоих образов на созвоне.\n\n"
+            "Там я помогу тебе увидеть смысл того, что показала медитация, и мы спокойно обсудим дальнейший путь без давления."
         ),
         reply_markup=InlineKeyboardMarkup(buttons)
     )
@@ -174,11 +159,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Образ внутреннего мужчины часто влияет на то, каких мужчин ты выбираешь, чего ждёшь от отношений и как переживаешь близость.\n\n"
         "Ниже — бесплатное видео, где я простым языком объясняю, кто такой внутренний мужчина и почему эта тема так сильно влияет на личную жизнь."
     )
+
+    await update.message.reply_text(text)
+
+    await update.message.reply_video(
+        video=config['free_video_file_id'],
+        caption="Бесплатное видео. Когда посмотришь — нажми кнопку ниже и получи медитацию."
+    )
+
     keyboard = [
-        [InlineKeyboardButton("▶️ Смотреть бесплатное видео", url=config['free_video_url'])],
         [InlineKeyboardButton("🧘 Получить медитацию", callback_data='get_meditation')]
     ]
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(
+        "Готова идти глубже?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 async def get_meditation(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -190,14 +185,25 @@ async def get_meditation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "Хорошо, идём глубже 🌿\n\n"
         "Это медитация-встреча с образом внутреннего мужчины. Делай её в спокойной обстановке, лучше в наушниках.\n\n"
-        "Не старайся анализировать во время процесса. Просто наблюдай, что приходит: образ, поведение, дистанция, эмоции, ощущения в теле.\n\n"
-        "После медитации нажми кнопку ниже и опиши, что увидела. Можно коротко, без длинного рассказа."
+        "Не старайся анализировать во время процесса. Просто наблюдай, что приходит: образ, поведение, дистанция, эмоции, ощущения в теле."
     )
+
+    await query.message.reply_text(text)
+
+    await query.message.reply_video(
+        video=config['meditation_file_id'],
+        caption="Сделай медитацию в спокойствии, а потом нажми кнопку ниже и опиши образы."
+    )
+
     keyboard = [
-        [InlineKeyboardButton("🎧 Слушать медитацию", url=config['meditation_url'])],
         [InlineKeyboardButton("📝 Описать образы", callback_data='share_images')]
     ]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.message.reply_text(
+        "Когда закончишь медитацию, переходи к следующему шагу.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    await query.edit_message_reply_markup(reply_markup=None)
 
 
 async def share_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -258,9 +264,8 @@ async def book_call(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     text = (
-        "Ниже твоё свободное расписание для разбора.\n\n"
-        "Ты сам вписываешь удобные слоты в файл конфигурации, а бот показывает их клиенту.\n\n"
-        f"Доступные окна:\n{next_slots_text(config)}\n\n"
+        "Ниже доступные окна для разбора.\n\n"
+        f"{next_slots_text(config)}\n\n"
         "Напиши в ответ день и время, например: Среда 15:00"
     )
     await query.edit_message_text(text)
@@ -291,12 +296,17 @@ async def receive_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def meditation_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     config = load_config()
+
+    await update.message.reply_video(
+        video=config['meditation_file_id'],
+        caption="Вот медитация. После неё опиши образы, и мы пойдём дальше."
+    )
+
     keyboard = [
-        [InlineKeyboardButton("🎧 Слушать медитацию", url=config['meditation_url'])],
         [InlineKeyboardButton("📝 Описать образы", callback_data='share_images')]
     ]
     await update.message.reply_text(
-        "Вот медитация. После неё опиши образы, и мы пойдём дальше.",
+        "После медитации нажми кнопку ниже.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
