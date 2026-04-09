@@ -1,0 +1,21 @@
+{
+  "bot_token": "PASTE_YOUR_BOT_TOKEN",
+  "admin_chat_id": "PASTE_YOUR_CHAT_ID",
+  "free_video_url": "PASTE_FREE_VIDEO_URL",
+  "meditation_url": "PASTE_MEDITATION_URL",
+  "booking_mode": "manual_slots",
+  "booking_link": "https://t.me/your_username",
+  "timezone_note": "Europe/Minsk",
+  "slots": {
+    "Mon": ["11:00", "14:00", "18:00"],
+    "Tue": ["12:00", "16:00"],
+    "Wed": ["11:00", "15:00", "19:00"],
+    "Thu": ["12:00", "17:00"],
+    "Fri": ["11:00", "14:00"],
+    "Sat": [],
+    "Sun": []
+  },
+  "price_note": "Если захочешь пойти глубже, у меня есть индивидуальная работа по теме внутреннего мужчины.",
+  "brand_name": "Александр Зарецкий",
+  "brand_role": "психолог, специалист по глубинной психологии отношений"
+}
