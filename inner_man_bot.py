@@ -44,6 +44,7 @@ DEFAULT_CONFIG = {
 
 
 def ensure_files():
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not CONFIG_PATH.exists():
         CONFIG_PATH.write_text(json.dumps(DEFAULT_CONFIG, ensure_ascii=False, indent=2), encoding='utf-8')
     if not DATA_PATH.exists():
