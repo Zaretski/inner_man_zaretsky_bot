@@ -37,19 +37,19 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "timezone_note": "Europe/Minsk",
     "booking_mode": "manual_slots",
     "booking_link": "https://t.me/Alex_Zaretsky",
-    "free_video_file_id": "BAACAgIAAxkBAAFG4sFp2M_t02YDOBNUS66t5vaL8W87ywACnJYAAswxyUqUDYEVMwABL747BA",
-    "meditation_file_id": "BAACAgIAAxkBAAFG4plp2M8cUgkDLnHlby4S4K4OUJLtaQACTJUAAswxyUoWDub5fumvkTsE",
+    "free_video_file_id": "PASTE_FREE_VIDEO_FILE_ID",
+    "meditation_file_id": "PASTE_MEDITATION_FILE_ID",
     "welcome_text": "Привет, {name}. Я рад, что ты здесь. Ниже — первое видео, которое поможет тебе мягко войти в процесс.",
     "free_video_caption": "Стартовое видео. Посмотри его в спокойной обстановке.",
     "meditation_intro_text": "Теперь переходи к короткой медитации. Она поможет услышать себя глубже.",
     "meditation_caption": "Медитация. Лучше слушать в тишине и без спешки.",
-    "images_prompt_text": "После практики напиши одним сообщением ответы на вопросы:\n1) Что ты сейчас чувствуешь?\n2) Что особенно откликнулось?\n3) Какие образы, мысли или воспоминания пришли?\n4) Что бы ты хотел изменить в своей жизни уже сейчас?\n\nМожно также приложить фото или скрин, но главное — текст одним сообщением.",
-    "images_thanks_text": "Спасибо. Я получил твой ответ. Ниже можешь выбрать удобный слот для созвона.",
-    "booking_intro_text": "Выбери удобный слот и отправь его одним сообщением точно в таком же виде, как в списке ниже.",
+    "images_prompt_text": "После практики напиши ОДНИМ сообщением ответы на вопросы:\n\n1) Во что был одет Внутренний Мужчина? Какие детали его образа запомнились?\n2) Что чувствовал к тебе этот Мужчина? Какие были его намерения по отношению к тебе?\n3) Что ты сама чувствовала к нему? Какие эмоции и телесные ощущения возникали рядом с ним?\n4) Как выглядела твоя Внутренняя Женщина: на кого она была похожа, во что была одета?\n5) Какие отношения были между вами тремя: тобой, Внутренним Мужчиной и Внутренней Женщиной?\n6) Если есть ещё важные детали, обязательно добавь их своими словами. Они помогают более точно понять процесс.\n\nПожалуйста, пиши всё одним сообщением. Так мне будет легче увидеть целостную картину.",
+    "images_thanks_text": "Спасибо. Я получил твой ответ.",
+    "booking_intro_text": "Выбери ОДИН удобный слот из списка ниже и пришли его одним сообщением, например: \"Ср: 15:00\".",
     "booking_success_text": "Спасибо. Я передал твою заявку. Скоро свяжусь с тобой для подтверждения времени.",
     "meditation_reminder_text": "Напоминание: если ещё не дошёл до практики, сейчас хорошее время посмотреть медитацию.",
     "images_reminder_text": "Напоминание: если уже посмотрел материалы, пришли мне одним сообщением свои ответы и ощущения.",
-    "call_reminder_text": "Напоминание: если готов двигаться дальше, выбери удобный слот для созвона.",
+    "call_reminder_text": "Напоминание: если готов двигаться дальше, выбери один удобный слот для созвона.",
     "fallback_no_video_text": "Видео сейчас не настроено. Проверь free_video_file_id или meditation_file_id в bot_config.json.",
     "fallback_no_slots_text": "Слоты пока не настроены. Временно напиши мне напрямую в Telegram: {booking_link}",
     "slots": {
@@ -59,8 +59,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "Thu": ["12:00", "17:00"],
         "Fri": ["11:00", "14:00"],
         "Sat": [],
-        "Sun": [],
-    },
+        "Sun": []
+    }
 }
 
 
@@ -88,8 +88,7 @@ def merge_dicts(base: Dict[str, Any], custom: Dict[str, Any]) -> Dict[str, Any]:
 def load_config() -> Dict[str, Any]:
     ensure_files()
     raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    config = merge_dicts(DEFAULT_CONFIG, raw)
-    return config
+    return merge_dicts(DEFAULT_CONFIG, raw)
 
 
 
@@ -157,6 +156,38 @@ def user_display_name(update: Update) -> str:
 
 
 
+def telegram_username(user) -> str:
+    if not user:
+        return ""
+    return f"@{user.username}" if getattr(user, "username", None) else ""
+
+
+
+def user_log_data(user) -> dict:
+    if not user:
+        return {
+            "user_id": 0,
+            "username": "",
+            "full_name": "",
+            "first_name": "",
+            "last_name": "",
+        }
+    return {
+        "user_id": user.id,
+        "username": telegram_username(user),
+        "full_name": user.full_name or "",
+        "first_name": user.first_name or "",
+        "last_name": user.last_name or "",
+    }
+
+
+
+def log_info_event(event_name: str, user=None, **extra) -> None:
+    payload = {"event": event_name, **user_log_data(user), **extra}
+    logger.info("EVENT %s", json.dumps(payload, ensure_ascii=False))
+
+
+
 def slot_lines(config: Dict[str, Any]) -> List[str]:
     day_names = {
         "Mon": "Пн",
@@ -171,8 +202,8 @@ def slot_lines(config: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
     for key in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]:
         values = slots.get(key, []) or []
-        if values:
-            lines.append(f"{day_names[key]}: {', '.join(values)}")
+        for value in values:
+            lines.append(f"{day_names[key]}: {value}")
     return lines
 
 
@@ -187,10 +218,30 @@ def slots_text(config: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-async def send_telegram_video(target_message, file_id: str, caption: str, fallback_text: str) -> bool:
+async def send_telegram_video(target_message, file_id: str, caption: str, fallback_text: str, *, event_name: str = "video_sent", user=None) -> bool:
     if file_id and not file_id.startswith("PASTE_"):
-        await target_message.reply_video(video=file_id, caption=caption)
-        return True
+        try:
+            await target_message.reply_video(video=file_id, caption=caption)
+            log_info_event(
+                event_name,
+                user,
+                file_id_prefix=file_id[:80],
+                caption=caption,
+            )
+            return True
+        except Exception as e:
+            log_info_event(
+                f"{event_name}_error",
+                user,
+                file_id_prefix=file_id[:80],
+                error=str(e),
+            )
+            raise
+    log_info_event(
+        f"{event_name}_skipped",
+        user,
+        reason="empty_or_placeholder_file_id",
+    )
     await target_message.reply_text(fallback_text)
     return False
 
@@ -216,6 +267,7 @@ async def remind_meditation(context: ContextTypes.DEFAULT_TYPE) -> None:
     config = load_config()
     chat_id = context.job.chat_id
     track_event(chat_id, "reminder_meditation_sent")
+    log_info_event("reminder_meditation_sent", None, chat_id=chat_id)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Получить медитацию", callback_data="get_meditation")]])
     await context.bot.send_message(chat_id=chat_id, text=config.get("meditation_reminder_text", DEFAULT_CONFIG["meditation_reminder_text"]), reply_markup=keyboard)
 
@@ -224,6 +276,7 @@ async def remind_images(context: ContextTypes.DEFAULT_TYPE) -> None:
     config = load_config()
     chat_id = context.job.chat_id
     track_event(chat_id, "reminder_images_sent")
+    log_info_event("reminder_images_sent", None, chat_id=chat_id)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Отправить ответы", callback_data="share_images")]])
     await context.bot.send_message(chat_id=chat_id, text=config.get("images_reminder_text", DEFAULT_CONFIG["images_reminder_text"]), reply_markup=keyboard)
 
@@ -232,22 +285,27 @@ async def remind_call(context: ContextTypes.DEFAULT_TYPE) -> None:
     config = load_config()
     chat_id = context.job.chat_id
     track_event(chat_id, "reminder_call_sent")
+    log_info_event("reminder_call_sent", None, chat_id=chat_id)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Выбрать слот", callback_data="book_call")]])
     await context.bot.send_message(chat_id=chat_id, text=config.get("call_reminder_text", DEFAULT_CONFIG["call_reminder_text"]), reply_markup=keyboard)
 
 
-async def send_meditation_flow(message, user_id: int, config: Dict[str, Any]) -> None:
+async def send_meditation_flow(message, user_id: int, config: Dict[str, Any], user=None) -> None:
     set_stage(user_id, stage="meditation_sent")
     track_event(user_id, "meditation_requested")
+    log_info_event("meditation_requested", user, stage="meditation_sent")
     await message.reply_text(config.get("meditation_intro_text", DEFAULT_CONFIG["meditation_intro_text"]))
     await send_telegram_video(
         message,
         file_id=(config.get("meditation_file_id") or "").strip(),
         caption=config.get("meditation_caption", DEFAULT_CONFIG["meditation_caption"]),
         fallback_text=config.get("fallback_no_video_text", DEFAULT_CONFIG["fallback_no_video_text"]),
+        event_name="meditation_video_sent",
+        user=user,
     )
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Отправить ответы", callback_data="share_images")]])
     await message.reply_text("После практики нажми кнопку ниже и пришли ответы одним сообщением.", reply_markup=keyboard)
+    log_info_event("images_cta_shown", user)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -259,6 +317,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     set_stage(user.id, stage="start")
     track_event(user.id, "bot_started", {"username": user.username or ""})
     await schedule_followups(context.application, update.effective_chat.id)
+    log_info_event(
+        "start_received",
+        user,
+        chat_id=update.effective_chat.id,
+        stage="start",
+    )
 
     welcome_text = render_text(
         config.get("welcome_text", DEFAULT_CONFIG["welcome_text"]),
@@ -272,9 +336,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         file_id=(config.get("free_video_file_id") or "").strip(),
         caption=config.get("free_video_caption", DEFAULT_CONFIG["free_video_caption"]),
         fallback_text=config.get("fallback_no_video_text", DEFAULT_CONFIG["fallback_no_video_text"]),
+        event_name="free_video_sent",
+        user=user,
     )
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Получить медитацию", callback_data="get_meditation")]])
     await update.message.reply_text("Когда будешь готов, нажми кнопку ниже.", reply_markup=keyboard)
+    log_info_event("meditation_cta_shown", user)
 
 
 async def get_meditation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -283,7 +350,7 @@ async def get_meditation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not query:
         return
     await query.answer()
-    await send_meditation_flow(query.message, query.from_user.id, config)
+    await send_meditation_flow(query.message, query.from_user.id, config, user=query.from_user)
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
@@ -298,6 +365,7 @@ async def share_images(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.answer()
     set_stage(query.from_user.id, stage="awaiting_images")
     track_event(query.from_user.id, "images_prompt_opened")
+    log_info_event("images_prompt_opened", query.from_user, stage="awaiting_images")
     await query.message.reply_text(config.get("images_prompt_text", DEFAULT_CONFIG["images_prompt_text"]))
     try:
         await query.edit_message_reply_markup(reply_markup=None)
@@ -319,9 +387,21 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     set_stage(user.id, stage="images_received", images_text=text)
     track_event(user.id, "images_received", {"text_length": len(text), "photos_count": len(photos)})
+    log_info_event(
+        "images_received",
+        user,
+        text_length=len(text),
+        photos_count=len(photos),
+        has_document=bool(document),
+    )
 
     admin_chat_id = int(config.get("admin_chat_id", 0) or 0)
     if admin_chat_id:
+        log_info_event(
+            "lead_forward_to_admin",
+            user,
+            admin_chat_id=admin_chat_id,
+        )
         username = f"@{user.username}" if user.username else "—"
         admin_text = (
             "Новая заявка от пользователя\n\n"
@@ -341,6 +421,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     booking_text = config.get("booking_intro_text", DEFAULT_CONFIG["booking_intro_text"])
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Выбрать слот", callback_data="book_call")]])
     await message.reply_text(f"{thanks_text}\n\n{booking_text}\n\n{slots_text(config)}", reply_markup=keyboard)
+    log_info_event("booking_cta_shown", user)
     return ConversationHandler.END
 
 
@@ -352,6 +433,7 @@ async def book_call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await query.answer()
     set_stage(query.from_user.id, stage="booking_started")
     track_event(query.from_user.id, "book_call_clicked")
+    log_info_event("book_call_clicked", query.from_user, stage="booking_started")
     await query.message.reply_text(f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_text(config)}")
     try:
         await query.edit_message_reply_markup(reply_markup=None)
@@ -370,9 +452,20 @@ async def receive_slot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     chosen_slot = (message.text or "").strip()
     set_stage(user.id, stage="slot_requested", chosen_slot=chosen_slot)
     track_event(user.id, "slot_requested", {"slot": chosen_slot})
+    log_info_event(
+        "slot_requested",
+        user,
+        chosen_slot=chosen_slot,
+    )
 
     admin_chat_id = int(config.get("admin_chat_id", 0) or 0)
     if admin_chat_id:
+        log_info_event(
+            "slot_forward_to_admin",
+            user,
+            admin_chat_id=admin_chat_id,
+            chosen_slot=chosen_slot,
+        )
         username = f"@{user.username}" if user.username else "—"
         admin_text = (
             "Запрос на созвон\n\n"
@@ -391,7 +484,7 @@ async def meditation_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     config = load_config()
     if not update.message or not update.effective_user:
         return
-    await send_meditation_flow(update.message, update.effective_user.id, config)
+    await send_meditation_flow(update.message, update.effective_user.id, config, user=update.effective_user)
 
 
 async def call_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -400,6 +493,7 @@ async def call_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     set_stage(update.effective_user.id, stage="booking_prompted")
     track_event(update.effective_user.id, "call_command_used")
+    log_info_event("call_command_used", update.effective_user, stage="booking_prompted")
     await update.message.reply_text(f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_text(config)}")
 
 
