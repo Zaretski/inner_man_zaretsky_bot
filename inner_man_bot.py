@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -31,17 +30,15 @@ ASKING_IMAGES = 1
 ASKING_SLOT = 2
 
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "bottoken": "PASTE_YOUR_BOT_TOKEN",
-    "adminchatid": 323258296,
-    "brandname": "Александр",
-    "brandrole": "психолог и проводник во внутреннюю опору",
-    "timezonenote": "Europe/Minsk",
-    "bookingmode": "manual_slots",
-    "bookinglink": "https://t.me/AlexZaretsky",
-    "freevideofileid": "PASTE_FREE_VIDEO_FILE_ID",
-    "meditationfileid": "PASTE_MEDITATION_FILE_ID",
-    "freevideourl": "",
-    "meditationurl": "",
+    "bot_token": "PASTE_YOUR_BOT_TOKEN",
+    "admin_chat_id": 323258296,
+    "brand_name": "Александр Зарецкий",
+    "brand_role": "психолог и проводник во внутреннюю опору",
+    "timezone_note": "Europe/Minsk",
+    "booking_mode": "manual_slots",
+    "booking_link": "https://t.me/Alex_Zaretsky",
+    "free_video_file_id": "PASTE_FREE_VIDEO_FILE_ID",
+    "meditation_file_id": "PASTE_MEDITATION_FILE_ID",
     "welcome_text": "Привет, {name}. Я рад, что ты здесь. Ниже — первое видео, которое поможет тебе мягко войти в процесс.",
     "free_video_caption": "Стартовое видео. Посмотри его в спокойной обстановке.",
     "meditation_intro_text": "Теперь переходи к короткой медитации. Она поможет услышать себя глубже.",
@@ -53,8 +50,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "meditation_reminder_text": "Напоминание: если ещё не дошёл до практики, сейчас хорошее время посмотреть медитацию.",
     "images_reminder_text": "Напоминание: если уже посмотрел материалы, пришли мне одним сообщением свои ответы и ощущения.",
     "call_reminder_text": "Напоминание: если готов двигаться дальше, выбери удобный слот для созвона.",
-    "fallback_no_video_text": "Видео сейчас не настроено. Сначала добавь file_id или URL в bot_config.json.",
-    "fallback_no_slots_text": "Слоты пока не настроены. Временно напиши мне напрямую в Telegram: {bookinglink}",
+    "fallback_no_video_text": "Видео сейчас не настроено. Проверь free_video_file_id или meditation_file_id в bot_config.json.",
+    "fallback_no_slots_text": "Слоты пока не настроены. Временно напиши мне напрямую в Telegram: {booking_link}",
     "slots": {
         "Mon": ["11:00", "14:00", "18:00"],
         "Tue": ["12:00", "16:00"],
@@ -76,6 +73,7 @@ def ensure_files() -> None:
         ANALYTICS_PATH.write_text(json.dumps({"events": [], "summary": {}}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+
 def merge_dicts(base: Dict[str, Any], custom: Dict[str, Any]) -> Dict[str, Any]:
     result = dict(base)
     for key, value in custom.items():
@@ -86,14 +84,13 @@ def merge_dicts(base: Dict[str, Any], custom: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+
 def load_config() -> Dict[str, Any]:
     ensure_files()
     raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     config = merge_dicts(DEFAULT_CONFIG, raw)
-    env_token = (Path("/dev/null") and __import__("os").environ.get("BOTTOKEN", "")).strip()
-    if env_token:
-        config["bottoken"] = env_token
     return config
+
 
 
 def load_data() -> Dict[str, Any]:
@@ -101,8 +98,10 @@ def load_data() -> Dict[str, Any]:
     return json.loads(DATA_PATH.read_text(encoding="utf-8"))
 
 
+
 def save_data(data: Dict[str, Any]) -> None:
     DATA_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 
 def load_analytics() -> Dict[str, Any]:
@@ -110,8 +109,10 @@ def load_analytics() -> Dict[str, Any]:
     return json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
 
 
+
 def save_analytics(data: Dict[str, Any]) -> None:
     ANALYTICS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 
 def track_event(user_id: int, event_type: str, data: Optional[Dict[str, Any]] = None) -> None:
@@ -128,6 +129,7 @@ def track_event(user_id: int, event_type: str, data: Optional[Dict[str, Any]] = 
     save_analytics(analytics)
 
 
+
 def set_stage(user_id: int, **kwargs: Any) -> None:
     data = load_data()
     state = data.get(str(user_id), {})
@@ -136,9 +138,6 @@ def set_stage(user_id: int, **kwargs: Any) -> None:
     data[str(user_id)] = state
     save_data(data)
 
-
-def get_state(user_id: int) -> Dict[str, Any]:
-    return load_data().get(str(user_id), {})
 
 
 def render_text(template: str, **kwargs: Any) -> str:
@@ -149,11 +148,13 @@ def render_text(template: str, **kwargs: Any) -> str:
         return template
 
 
+
 def user_display_name(update: Update) -> str:
     user = update.effective_user
     if not user:
         return "друг"
     return user.first_name or user.full_name or "друг"
+
 
 
 def slot_lines(config: Dict[str, Any]) -> List[str]:
@@ -175,26 +176,20 @@ def slot_lines(config: Dict[str, Any]) -> List[str]:
     return lines
 
 
+
 def slots_text(config: Dict[str, Any]) -> str:
     lines = slot_lines(config)
     if not lines:
-        return render_text(config.get("fallback_no_slots_text", DEFAULT_CONFIG["fallback_no_slots_text"]), bookinglink=config.get("bookinglink", ""))
+        return render_text(
+            config.get("fallback_no_slots_text", DEFAULT_CONFIG["fallback_no_slots_text"]),
+            booking_link=config.get("booking_link", ""),
+        )
     return "\n".join(lines)
 
 
-async def send_video_or_link(
-    target_message,
-    *,
-    file_id: str,
-    url: str,
-    caption: str,
-    fallback_text: str,
-) -> bool:
+async def send_telegram_video(target_message, file_id: str, caption: str, fallback_text: str) -> bool:
     if file_id and not file_id.startswith("PASTE_"):
         await target_message.reply_video(video=file_id, caption=caption)
-        return True
-    if url:
-        await target_message.reply_text(f"{caption}\n\nСсылка: {url}")
         return True
     await target_message.reply_text(fallback_text)
     return False
@@ -241,6 +236,20 @@ async def remind_call(context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(chat_id=chat_id, text=config.get("call_reminder_text", DEFAULT_CONFIG["call_reminder_text"]), reply_markup=keyboard)
 
 
+async def send_meditation_flow(message, user_id: int, config: Dict[str, Any]) -> None:
+    set_stage(user_id, stage="meditation_sent")
+    track_event(user_id, "meditation_requested")
+    await message.reply_text(config.get("meditation_intro_text", DEFAULT_CONFIG["meditation_intro_text"]))
+    await send_telegram_video(
+        message,
+        file_id=(config.get("meditation_file_id") or "").strip(),
+        caption=config.get("meditation_caption", DEFAULT_CONFIG["meditation_caption"]),
+        fallback_text=config.get("fallback_no_video_text", DEFAULT_CONFIG["fallback_no_video_text"]),
+    )
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Отправить ответы", callback_data="share_images")]])
+    await message.reply_text("После практики нажми кнопку ниже и пришли ответы одним сообщением.", reply_markup=keyboard)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config = load_config()
     name = user_display_name(update)
@@ -254,43 +263,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     welcome_text = render_text(
         config.get("welcome_text", DEFAULT_CONFIG["welcome_text"]),
         name=name,
-        brandname=config.get("brandname", ""),
-        brandrole=config.get("brandrole", ""),
+        brand_name=config.get("brand_name", ""),
+        brand_role=config.get("brand_role", ""),
     )
     await update.message.reply_text(welcome_text)
-
-    await send_video_or_link(
+    await send_telegram_video(
         update.message,
-        file_id=(config.get("freevideofileid") or "").strip(),
-        url=(config.get("freevideourl") or "").strip(),
+        file_id=(config.get("free_video_file_id") or "").strip(),
         caption=config.get("free_video_caption", DEFAULT_CONFIG["free_video_caption"]),
         fallback_text=config.get("fallback_no_video_text", DEFAULT_CONFIG["fallback_no_video_text"]),
     )
-
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Получить медитацию", callback_data="get_meditation")]])
     await update.message.reply_text("Когда будешь готов, нажми кнопку ниже.", reply_markup=keyboard)
 
 
 async def get_meditation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    config = load_config()
     query = update.callback_query
+    config = load_config()
     if not query:
         return
     await query.answer()
-    set_stage(query.from_user.id, stage="meditation_sent")
-    track_event(query.from_user.id, "meditation_requested")
-
-    await query.message.reply_text(config.get("meditation_intro_text", DEFAULT_CONFIG["meditation_intro_text"]))
-    await send_video_or_link(
-        query.message,
-        file_id=(config.get("meditationfileid") or "").strip(),
-        url=(config.get("meditationurl") or "").strip(),
-        caption=config.get("meditation_caption", DEFAULT_CONFIG["meditation_caption"]),
-        fallback_text=config.get("fallback_no_video_text", DEFAULT_CONFIG["fallback_no_video_text"]),
-    )
-
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Отправить ответы", callback_data="share_images")]])
-    await query.message.reply_text("После практики нажми кнопку ниже и пришли ответы одним сообщением.", reply_markup=keyboard)
+    await send_meditation_flow(query.message, query.from_user.id, config)
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
@@ -327,7 +320,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     set_stage(user.id, stage="images_received", images_text=text)
     track_event(user.id, "images_received", {"text_length": len(text), "photos_count": len(photos)})
 
-    admin_chat_id = int(config.get("adminchatid", 0) or 0)
+    admin_chat_id = int(config.get("admin_chat_id", 0) or 0)
     if admin_chat_id:
         username = f"@{user.username}" if user.username else "—"
         admin_text = (
@@ -346,9 +339,8 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     thanks_text = config.get("images_thanks_text", DEFAULT_CONFIG["images_thanks_text"])
     booking_text = config.get("booking_intro_text", DEFAULT_CONFIG["booking_intro_text"])
-    slots_block = slots_text(config)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Выбрать слот", callback_data="book_call")]])
-    await message.reply_text(f"{thanks_text}\n\n{booking_text}\n\n{slots_block}", reply_markup=keyboard)
+    await message.reply_text(f"{thanks_text}\n\n{booking_text}\n\n{slots_text(config)}", reply_markup=keyboard)
     return ConversationHandler.END
 
 
@@ -360,9 +352,7 @@ async def book_call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await query.answer()
     set_stage(query.from_user.id, stage="booking_started")
     track_event(query.from_user.id, "book_call_clicked")
-
-    slots_block = slots_text(config)
-    await query.message.reply_text(f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_block}")
+    await query.message.reply_text(f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_text(config)}")
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
@@ -381,7 +371,7 @@ async def receive_slot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     set_stage(user.id, stage="slot_requested", chosen_slot=chosen_slot)
     track_event(user.id, "slot_requested", {"slot": chosen_slot})
 
-    admin_chat_id = int(config.get("adminchatid", 0) or 0)
+    admin_chat_id = int(config.get("admin_chat_id", 0) or 0)
     if admin_chat_id:
         username = f"@{user.username}" if user.username else "—"
         admin_text = (
@@ -398,11 +388,10 @@ async def receive_slot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def meditation_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    fake_update = Update(update.update_id, callback_query=None)
-    fake_update._effective_user = update.effective_user
-    fake_update._effective_chat = update.effective_chat
-    fake_update._message = update.message
-    await get_meditation(fake_update, context)
+    config = load_config()
+    if not update.message or not update.effective_user:
+        return
+    await send_meditation_flow(update.message, update.effective_user.id, config)
 
 
 async def call_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -411,9 +400,7 @@ async def call_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     set_stage(update.effective_user.id, stage="booking_prompted")
     track_event(update.effective_user.id, "call_command_used")
-    await update.message.reply_text(
-        f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_text(config)}"
-    )
+    await update.message.reply_text(f"{config.get('booking_intro_text', DEFAULT_CONFIG['booking_intro_text'])}\n\n{slots_text(config)}")
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -424,11 +411,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+
 def main() -> None:
     config = load_config()
-    token = (config.get("bottoken") or "").strip()
+    token = (config.get("bot_token") or "").strip()
     if not token or token.startswith("PASTE_"):
-        raise ValueError("Укажи реальный bot token в bot_config.json или в переменной окружения BOTTOKEN")
+        raise ValueError("Укажи реальный bot_token в bot_config.json")
 
     application = Application.builder().token(token).build()
 
