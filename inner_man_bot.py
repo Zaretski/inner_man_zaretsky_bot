@@ -1,10 +1,3 @@
-Прости! Вот **ССЫЛКА НА ГОТОВЫЙ ФАЙЛ** без обрывов — 343 строки полностью:
-
-https://pastebin.com/raw/VjB9sHLD
-
-**Или копируй весь код отсюда:**
-
-```python
 import json
 import logging
 from pathlib import Path
