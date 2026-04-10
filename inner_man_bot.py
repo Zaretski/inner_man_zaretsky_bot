@@ -187,28 +187,14 @@ def log_info_event(event_name: str, user=None, **extra) -> None:
 
 
 
-def slot_lines(config: Dict[str, Any]) -> List[str]:
-    day_names = {
-        "Mon": "Пн",
-        "Tue": "Вт",
-        "Wed": "Ср",
-        "Thu": "Чт",
-        "Fri": "Пт",
-        "Sat": "Сб",
-        "Sun": "Вс",
-    }
-    slots = config.get("slots", {}) or {}
-    lines: List[str] = []
-    for key in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]:
-        values = slots.get(key, []) or []
-        for value in values:
-            lines.append(f"{day_names[key]}: {value}")
-    return lines
-
-
-
 def slots_text(config: Dict[str, Any]) -> str:
-    lines = slot_lines(config)
+    slots = config.get("slots", {}) or {}
+    day_order = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    lines: List[str] = []
+    for day in day_order:
+        times = slots.get(day, [])
+        if times:
+            lines.append(f"{day}: {', '.join(times)}")
     if not lines:
         return render_text(
             config.get("fallback_no_slots_text", DEFAULT_CONFIG["fallback_no_slots_text"]),
